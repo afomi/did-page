@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DID Page – Accounts, DIDs, Credentials, Verify</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* subtle focus ring for accessibility */
+    .focus-ring:focus {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+    }
+  </style>
+</head>
+
+<body class="bg-gray-50 text-gray-800">
+  <header class="border-b bg-white sticky top-0 z-10">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-xl bg-blue-600"></div>
+        <h1 class="text-xl font-semibold tracking-tight">DID Page</h1>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="seedDemoBtn" class="px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 focus-ring">Seed
+          demo data</button>
+        <button id="resetBtn" class="px-3 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 focus-ring">Reset</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <!-- Intro -->
+    <section class="mb-6">
+      <div class="bg-white border rounded-2xl p-5 md:p-6 shadow-sm">
+        <p class="text-sm text-gray-600">Create multiple <strong>accounts</strong>. Each account can create one or more
+          <strong>DIDs</strong> (with P-256 keys). An account acting as <strong>Issuer</strong> can create a signed
+          credential for a Subject DID. An account acting as <strong>Verifier</strong> can prompt for a credential and
+          verify its signature and required claims.
+        </p>
+      </div>
+    </section>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Accounts Column -->
+      <section class="lg:col-span-1 space-y-4">
+        <div class="bg-white border rounded-2xl p-5 shadow-sm">
+          <h2 class="text-base font-semibold mb-4">Create account</h2>
+          <form id="createAccountForm" class="space-y-3">
+            <label class="block">
+              <span class="text-sm">Name</span>
+              <input id="accountName" class="mt-1 w-full border rounded-lg px-3 py-2 focus-ring" placeholder="Acme Corp"
+                required />
+            </label>
+            <button class="w-full px-3 py-2 rounded-lg bg-gray-900 text-white hover:bg-black focus-ring"
+              type="submit">Create</button>
+          </form>
+        </div>
+
+        <div class="bg-white border rounded-2xl p-5 shadow-sm">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-base font-semibold">Accounts</h2>
+            <div class="text-sm text-gray-500" id="accountCount">0</div>
+          </div>
+          <ul id="accountsList" class="divide-y"></ul>
+        </div>
+      </section>
+
+      <!-- Workspace Column -->
+      <section class="lg:col-span-2 space-y-6">
+        <div class="bg-white border rounded-2xl p-5 shadow-sm">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-base font-semibold">Workspace</h2>
+            <div id="activeAccountLabel" class="text-sm text-gray-500">No account selected</div>
+          </div>
+
+          <div id="workspace" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- DIDs -->
+            <div class="border rounded-xl p-4">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="font-medium">Decentralized Identifiers (DIDs)</h3>
+                <button id="addDidBtn"
+                  class="text-sm px-2.5 py-1.5 rounded-md bg-blue-600 text-white disabled:opacity-50" disabled>Add
+                  DID</button>
+              </div>
+              <ul id="didsList" class="space-y-3 text-sm"></ul>
+            </div>
+
+            <!-- Issue Credential -->
+            <div class="border rounded-xl p-4">
+              <h3 class="font-medium mb-3">Issue credential</h3>
+              <form id="issueForm" class="space-y-3">
+                <label class="block text-sm">
+                  <span>Issuer DID</span>
+                  <select id="issuerDid" class="mt-1 w-full border rounded-lg px-3 py-2 focus-ring" required></select>
+                </label>
+                <label class="block text-sm">
+                  <span>Subject DID</span>
+                  <input id="subjectDid" class="mt-1 w-full border rounded-lg px-3 py-2 focus-ring"
+                    placeholder="did:example:..." required />
+                </label>
+                <label class="block text-sm">
+                  <span>Type</span>
+                  <input id="credType" class="mt-1 w-full border rounded-lg px-3 py-2 focus-ring"
+                    placeholder="EmploymentCredential" required />
+                </label>
+                <fieldset class="text-sm">
+                  <legend class="mb-1">Claims</legend>
+                  <div class="grid grid-cols-2 gap-2">
+                    <input id="claimK1" class="border rounded-lg px-2 py-1" placeholder="key (e.g., role)" />
+                    <input id="claimV1" class="border rounded-lg px-2 py-1" placeholder="value (e.g., Engineer)" />
+                    <input id="claimK2" class="border rounded-lg px-2 py-1" placeholder="key (optional)" />
+                    <input id="claimV2" class="border rounded-lg px-2 py-1" placeholder="value (optional)" />
+                  </div>
+                </fieldset>
+                <button class="w-full px-3 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 focus-ring"
+                  type="submit">Sign & issue</button>
+              </form>
+            </div>
+
+            <!-- My Credentials -->
+            <div class="border rounded-xl p-4 md:col-span-2">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="font-medium">Issued credentials (by selected account)</h3>
+                <span id="credCount" class="text-sm text-gray-500">0</span>
+              </div>
+              <div id="credsList" class="grid md:grid-cols-2 gap-3"></div>
+            </div>
+
+            <!-- Prompt & Verify -->
+            <div class="border rounded-xl p-4 md:col-span-2">
+              <h3 class="font-medium mb-3">Prompt & verify a credential</h3>
+              <form id="promptForm" class="grid md:grid-cols-4 gap-3 items-end">
+                <label class="block text-sm md:col-span-1">
+                  <span>Verifier (Account)</span>
+                  <select id="verifierAccount" class="mt-1 w-full border rounded-lg px-3 py-2 focus-ring"
+                    required></select>
+                </label>
+                <label class="block text-sm md:col-span-1">
+                  <span>Required Type</span>
+                  <input id="requiredType" class="mt-1 w-full border rounded-lg px-3 py-2 focus-ring"
+                    placeholder="EmploymentCredential" required />
+                </label>
+                <label class="block text-sm md:col-span-1">
+                  <span>Required Claim (key)</span>
+                  <input id="requiredClaimKey" class="mt-1 w-full border rounded-lg px-3 py-2 focus-ring"
+                    placeholder="role" />
+                </label>
+                <label class="block text-sm md:col-span-1">
+                  <span>Required Claim (value)</span>
+                  <input id="requiredClaimVal" class="mt-1 w-full border rounded-lg px-3 py-2 focus-ring"
+                    placeholder="Engineer" />
+                </label>
+                <div class="md:col-span-4 flex gap-3">
+                  <button class="px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 focus-ring"
+                    type="submit">Create prompt</button>
+                  <div id="promptStatus" class="text-sm text-gray-600"></div>
+                </div>
+              </form>
+
+              <div id="presentationArea" class="mt-4 hidden">
+                <div class="border rounded-lg p-3 bg-gray-50">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <div class="text-sm font-medium">Active prompt</div>
+                      <div id="promptSummary" class="text-sm text-gray-600"></div>
+                    </div>
+                    <button id="cancelPromptBtn"
+                      class="text-sm px-2.5 py-1.5 rounded-md bg-gray-200 hover:bg-gray-300 focus-ring">Cancel</button>
+                  </div>
+                  <div class="mt-3 grid md:grid-cols-3 gap-3">
+                    <label class="block text-sm">
+                      <span>Presenting User (Account)</span>
+                      <select id="presenterAccount" class="mt-1 w-full border rounded-lg px-3 py-2 focus-ring"></select>
+                    </label>
+                    <label class="block text-sm md:col-span-2">
+                      <span>Choose credential to present</span>
+                      <select id="presenterCredential"
+                        class="mt-1 w-full border rounded-lg px-3 py-2 focus-ring"></select>
+                    </label>
+                  </div>
+                  <div class="mt-3 flex gap-3">
+                    <button id="presentBtn"
+                      class="px-3 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 focus-ring">Present &
+                      verify</button>
+                    <div id="verifyResult" class="text-sm"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Templates -->
+  <template id="accountItemTpl">
+    <li class="py-2 flex items-center justify-between gap-3">
+      <button
+        class="account-select flex-1 text-left text-sm px-3 py-2 rounded-lg hover:bg-gray-100 focus-ring"></button>
+      <button
+        class="account-delete text-xs px-2 py-1 rounded-md bg-red-50 text-red-700 hover:bg-red-100 focus-ring">Delete</button>
+    </li>
+  </template>
+
+  <template id="didItemTpl">
+    <li class="border rounded-lg p-3 bg-gray-50">
+      <div class="flex items-start justify-between gap-3">
+        <div class="text-sm break-all">
+          <div class="font-medium did-value"></div>
+          <div class="text-gray-600">P-256 JWK</div>
+        </div>
+        <div class="flex gap-2">
+          <button class="text-xs px-2 py-1 rounded-md bg-gray-200 hover:bg-gray-300 focus-ring copy-did">Copy</button>
+          <button
+            class="text-xs px-2 py-1 rounded-md bg-gray-200 hover:bg-gray-300 focus-ring export-did">Export</button>
+        </div>
+      </div>
+    </li>
+  </template>
+
+  <template id="credCardTpl">
+    <div class="border rounded-xl p-3 bg-gray-50">
+      <div class="flex items-center justify-between">
+        <div class="font-medium text-sm cred-type"></div>
+        <button
+          class="text-xs px-2 py-1 rounded-md bg-gray-200 hover:bg-gray-300 focus-ring export-cred">Export</button>
+      </div>
+      <div class="mt-1 text-xs text-gray-700 space-y-1">
+        <div><span class="font-medium">Issuer:</span> <span class="issuer"></span></div>
+        <div><span class="font-medium">Subject:</span> <span class="subject"></span></div>
+        <div class="claims"></div>
+        <div class="text-gray-500 issuance"></div>
+      </div>
+    </div>
+  </template>
+
+  <script>
+    // --- Utilities ---
+    const enc = new TextEncoder();
+    const dec = new TextDecoder();
+
+    const b64u = {
+      encode: (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''),
+      decode: (str) => {
+        str = str.replace(/-/g, '+').replace(/_/g, '/');
+        const pad = str.length % 4 === 0 ? '' : '='.repeat(4 - (str.length % 4));
+        return Uint8Array.from(atob(str + pad), c => c.charCodeAt(0));
+      }
+    };
+
+    function uuid() {
+      return ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16));
+    }
+
+    function nowISO() { return new Date().toISOString(); }
+
+    function canonicalPayload(obj) {
+      // Minimal stable string for signing (avoids full JSON-LD canonicalization for demo)
+      const { issuer, subject, type, claims, issuanceDate } = obj;
+      return JSON.stringify({ issuer, subject, type, claims, issuanceDate });
+    }
+
+    // --- State ---
+    const state = {
+      accounts: [], // {id, name, dids: [{id, did, publicJwk, privateJwk}], issuedCreds: []}
+      activeAccountId: null,
+      activePrompt: null,
+    };
+
+    function getAccount(id) { return state.accounts.find(a => a.id === id); }
+
+    // --- Crypto (P-256 ECDSA w/ SHA-256) ---
+    async function genP256() {
+      const keyPair = await crypto.subtle.generateKey(
+        { name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']
+      );
+      const pub = await crypto.subtle.exportKey('jwk', keyPair.publicKey);
+      const priv = await crypto.subtle.exportKey('jwk', keyPair.privateKey);
+      return { publicJwk: pub, privateJwk: priv };
+    }
+
+    async function importKey(jwk, usage) {
+      return crypto.subtle.importKey(
+        'jwk', jwk, { name: 'ECDSA', namedCurve: 'P-256' }, true, [usage]
+      );
+    }
+
+    async function signWithJwk(privateJwk, dataStr) {
+      const key = await importKey(privateJwk, 'sign');
+      const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, key, enc.encode(dataStr));
+      return b64u.encode(new Uint8Array(sig));
+    }
+
+    async function verifyWithJwk(publicJwk, dataStr, signatureB64u) {
+      const key = await importKey(publicJwk, 'verify');
+      const ok = await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, key, b64u.decode(signatureB64u), enc.encode(dataStr));
+      return ok;
+    }
+
+    // --- Accounts ---
+    function createAccount(name) {
+      const account = { id: uuid(), name, dids: [], issuedCreds: [] };
+      state.accounts.push(account);
+      if (!state.activeAccountId) state.activeAccountId = account.id;
+      renderAccounts();
+      selectAccount(account.id);
+    }
+
+    function deleteAccount(id) {
+      const i = state.accounts.findIndex(a => a.id === id);
+      if (i >= 0) state.accounts.splice(i, 1);
+      if (state.activeAccountId === id) state.activeAccountId = state.accounts[0]?.id || null;
+      renderAccounts();
+      selectAccount(state.activeAccountId);
+    }
+
+    function selectAccount(id) {
+      state.activeAccountId = id;
+      const acc = getAccount(id);
+      document.getElementById('activeAccountLabel').textContent = acc ? `Selected: ${acc.name}` : 'No account selected';
+      document.getElementById('addDidBtn').disabled = !acc;
+      renderDids();
+      renderIssuerSelect();
+      renderCreds();
+      renderVerifierAccountSelect();
+      renderPresenterAccountSelect();
+    }
+
+    // --- DIDs ---
+    async function addDid(accountId) {
+      const kp = await genP256();
+      const did = `did:example:${uuid()}`;
+      const entry = { id: uuid(), did, publicJwk: kp.publicJwk, privateJwk: kp.privateJwk };
+      getAccount(accountId).dids.push(entry);
+      renderDids();
+      renderIssuerSelect();
+    }
+
+    function renderDids() {
+      const list = document.getElementById('didsList');
+      list.innerHTML = '';
+      const acc = getAccount(state.activeAccountId);
+      if (!acc) return;
+      acc.dids.forEach(d => {
+        const t = document.getElementById('didItemTpl').content.cloneNode(true);
+        t.querySelector('.did-value').textContent = d.did;
+        t.querySelector('.copy-did').addEventListener('click', () => navigator.clipboard.writeText(d.did));
+        t.querySelector('.export-did').addEventListener('click', () => {
+          const didDoc = {
+            id: d.did,
+            verificationMethod: [{ id: `${d.did}#key-1`, type: 'JsonWebKey2020', controller: d.did, publicKeyJwk: d.publicJwk }],
+            assertionMethod: [`${d.did}#key-1`],
+            authentication: [`${d.did}#key-1`]
+          };
+          downloadJSON(`${safeName(d.did)}.did.json`, didDoc);
+        });
+        list.appendChild(t);
+      });
+    }
+
+    function renderIssuerSelect() {
+      const sel = document.getElementById('issuerDid');
+      sel.innerHTML = '';
+      const acc = getAccount(state.activeAccountId);
+      if (!acc) return;
+      acc.dids.forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d.id;
+        opt.textContent = d.did;
+        sel.appendChild(opt);
+      });
+    }
+
+    function safeName(s) { return s.replace(/[^a-z0-9-_\.]/gi, '_'); }
+
+    // --- Credentials ---
+    async function issueCredential(form) {
+      const acc = getAccount(state.activeAccountId);
+      if (!acc) return alert('Select an account');
+      const didRecord = acc.dids.find(d => d.id === form.issuerDid.value);
+      if (!didRecord) return alert('Choose an issuer DID');
+
+      const claims = {};
+      if (form.claimK1.value && form.claimV1.value) claims[form.claimK1.value] = form.claimV1.value;
+      if (form.claimK2.value && form.claimV2.value) claims[form.claimK2.value] = form.claimV2.value;
+
+      const credential = {
+        '@context': ['https://www.w3.org/2018/credentials/v1'],
+        type: ['VerifiableCredential', form.credType.value || 'DemoCredential'],
+        issuer: didRecord.did,
+        subject: form.subjectDid.value,
+        claims,
+        issuanceDate: nowISO(),
+      };
+
+      const payload = canonicalPayload(credential);
+      const signature = await signWithJwk(didRecord.privateJwk, payload);
+      credential.proof = {
+        type: 'EcdsaSecp256r1Signature2019',
+        created: nowISO(),
+        verificationMethod: `${didRecord.did}#key-1`,
+        proofPurpose: 'assertionMethod',
+        jws: signature
+      };
+
+      acc.issuedCreds.unshift(credential);
+      renderCreds();
+      form.reset();
+      renderIssuerSelect();
+      alert('Credential issued.');
+    }
+
+    function renderCreds() {
+      const wrap = document.getElementById('credsList');
+      const count = document.getElementById('credCount');
+      wrap.innerHTML = '';
+      const acc = getAccount(state.activeAccountId);
+      if (!acc) { count.textContent = '0'; return; }
+      count.textContent = String(acc.issuedCreds.length);
+      acc.issuedCreds.forEach(c => {
+        const t = document.getElementById('credCardTpl').content.cloneNode(true);
+        t.querySelector('.cred-type').textContent = Array.isArray(c.type) ? c.type.join(', ') : c.type;
+        t.querySelector('.issuer').textContent = c.issuer;
+        t.querySelector('.subject').textContent = c.subject;
+        const claimsDiv = t.querySelector('.claims');
+        claimsDiv.innerHTML = Object.entries(c.claims).map(([k, v]) => `<span class="inline-flex items-center text-xs bg-white border rounded-md px-2 py-0.5 mr-1 mb-1"><span class="font-medium mr-1">${k}</span>${v}</span>`).join('');
+        t.querySelector('.issuance').textContent = `Issued ${new Date(c.issuanceDate).toLocaleString()}`;
+        t.querySelector('.export-cred').addEventListener('click', () => downloadJSON(`${safeName(c.subject)}_${safeName(c.type[1] || 'Credential')}.vc.json`, c));
+        wrap.appendChild(t);
+      });
+    }
+
+    async function verifyCredentialAgainstPrompt(credential, prompt) {
+      // Verify signature using the issuer DID public key (found among all accounts' DIDs)
+      const issuerDid = credential.issuer;
+      const didRecord = findDidByValue(issuerDid);
+      if (!didRecord) return { ok: false, reason: 'Issuer DID key not found in this demo.' };
+      const payload = canonicalPayload(credential);
+      const sig = credential.proof?.jws;
+      if (!sig) return { ok: false, reason: 'Missing proof signature.' };
+      const sigOk = await verifyWithJwk(didRecord.publicJwk, payload, sig);
+      if (!sigOk) return { ok: false, reason: 'Bad signature.' };
+      // Check type
+      const types = Array.isArray(credential.type) ? credential.type : [credential.type];
+      if (!types.includes(prompt.requiredType)) return { ok: false, reason: `Type mismatch. Need ${prompt.requiredType}.` };
+      // Check required claim if present
+      if (prompt.requiredClaimKey) {
+        if (credential.claims?.[prompt.requiredClaimKey] !== prompt.requiredClaimVal) {
+          return { ok: false, reason: 'Required claim not satisfied.' };
+        }
+      }
+      return { ok: true };
+    }
+
+    function findDidByValue(did) {
+      for (const a of state.accounts) {
+        for (const d of a.dids) if (d.did === did) return d;
+      }
+      return null;
+    }
+
+    // --- Prompt / Presentation ---
+    function createPrompt(data) {
+      state.activePrompt = { id: uuid(), ...data };
+      renderPromptUI();
+    }
+
+    function cancelPrompt() {
+      state.activePrompt = null;
+      renderPromptUI();
+    }
+
+    function renderPromptUI() {
+      const area = document.getElementById('presentationArea');
+      const status = document.getElementById('promptStatus');
+      if (!state.activePrompt) {
+        area.classList.add('hidden');
+        status.textContent = 'No active prompt.';
+        return;
+      }
+      status.textContent = 'Prompt active. Waiting for presentation…';
+      area.classList.remove('hidden');
+      const p = state.activePrompt;
+      document.getElementById('promptSummary').textContent = `Verifier: ${getAccount(p.verifierAccountId)?.name} • Type: ${p.requiredType}` + (p.requiredClaimKey ? ` • Claim: ${p.requiredClaimKey}=${p.requiredClaimVal}` : '');
+      renderPresenterAccountSelect();
+      renderPresenterCredentialSelect();
+    }
+
+    function renderVerifierAccountSelect() {
+      const sel = document.getElementById('verifierAccount');
+      sel.innerHTML = '';
+      state.accounts.forEach(a => {
+        const opt = document.createElement('option');
+        opt.value = a.id; opt.textContent = a.name; sel.appendChild(opt);
+      });
+    }
+
+    function renderPresenterAccountSelect() {
+      const sel = document.getElementById('presenterAccount');
+      sel.innerHTML = '';
+      state.accounts.forEach(a => {
+        const opt = document.createElement('option');
+        opt.value = a.id; opt.textContent = a.name; sel.appendChild(opt);
+      });
+      sel.addEventListener('change', renderPresenterCredentialSelect, { once: true });
+    }
+
+    function renderPresenterCredentialSelect() {
+      const accountId = document.getElementById('presenterAccount').value;
+      const sel = document.getElementById('presenterCredential');
+      sel.innerHTML = '';
+      const acc = getAccount(accountId);
+      if (!acc) return;
+      acc.issuedCreds.forEach((c, idx) => {
+        const opt = document.createElement('option');
+        opt.value = idx;
+        opt.textContent = `${c.type[1] || c.type} → subj ${c.subject}`;
+        sel.appendChild(opt);
+      });
+    }
+
+    function downloadJSON(filename, obj) {
+      const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename; a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // --- Render Accounts List ---
+    function renderAccounts() {
+      const list = document.getElementById('accountsList');
+      list.innerHTML = '';
+      document.getElementById('accountCount').textContent = String(state.accounts.length);
+      state.accounts.forEach(a => {
+        const t = document.getElementById('accountItemTpl').content.cloneNode(true);
+        const btn = t.querySelector('.account-select');
+        btn.textContent = a.name;
+        if (state.activeAccountId === a.id) btn.classList.add('bg-gray-900', 'text-white');
+        btn.addEventListener('click', () => selectAccount(a.id));
+        t.querySelector('.account-delete').addEventListener('click', () => deleteAccount(a.id));
+        list.appendChild(t);
+      });
+    }
+
+    // --- Seed demo ---
+    async function seedDemo() {
+      state.accounts = [];
+      state.activePrompt = null;
+      const acme = { id: uuid(), name: 'Acme HR', dids: [], issuedCreds: [] };
+      const school = { id: uuid(), name: 'Bay School', dids: [], issuedCreds: [] };
+      const user = { id: uuid(), name: 'Jane User', dids: [], issuedCreds: [] };
+      state.accounts.push(acme, school, user);
+
+      // DIDs
+      for (const a of state.accounts) {
+        const { publicJwk, privateJwk } = await genP256();
+        a.dids.push({ id: uuid(), did: `did:example:${uuid()}`, publicJwk, privateJwk });
+      }
+
+      // Issue an employment credential from Acme to Jane
+      const emp = {
+        '@context': ['https://www.w3.org/2018/credentials/v1'],
+        type: ['VerifiableCredential', 'EmploymentCredential'],
+        issuer: state.accounts[0].dids[0].did,
+        subject: state.accounts[2].dids[0].did,
+        claims: { role: 'Engineer', org: 'Acme' },
+        issuanceDate: nowISO()
+      };
+      emp.proof = {
+        type: 'EcdsaSecp256r1Signature2019',
+        created: nowISO(),
+        verificationMethod: `${state.accounts[0].dids[0].did}#key-1`,
+        proofPurpose: 'assertionMethod',
+        jws: await signWithJwk(state.accounts[0].dids[0].privateJwk, canonicalPayload(emp))
+      };
+      state.accounts[0].issuedCreds.push(emp); // issuer keeps a copy
+      state.accounts[2].issuedCreds.push(emp); // user has their copy
+
+      renderAccounts();
+      selectAccount(acme.id);
+      state.activePrompt = null;
+      renderPromptUI();
+    }
+
+    // --- Events ---
+    document.getElementById('createAccountForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      createAccount(document.getElementById('accountName').value.trim() || 'Untitled');
+      e.target.reset();
+    });
+
+    document.getElementById('addDidBtn').addEventListener('click', async () => {
+      if (!state.activeAccountId) return;
+      await addDid(state.activeAccountId);
+    });
+
+    document.getElementById('issueForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      await issueCredential(e.target);
+    });
+
+    document.getElementById('promptForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const data = {
+        verifierAccountId: document.getElementById('verifierAccount').value,
+        requiredType: document.getElementById('requiredType').value.trim(),
+        requiredClaimKey: document.getElementById('requiredClaimKey').value.trim(),
+        requiredClaimVal: document.getElementById('requiredClaimVal').value.trim(),
+      };
+      createPrompt(data);
+    });
+
+    document.getElementById('cancelPromptBtn').addEventListener('click', cancelPrompt);
+
+    document.getElementById('presentBtn').addEventListener('click', async () => {
+      const presenterId = document.getElementById('presenterAccount').value;
+      const idx = parseInt(document.getElementById('presenterCredential').value, 10);
+      const acc = getAccount(presenterId);
+      const cred = acc?.issuedCreds[idx];
+      const prompt = state.activePrompt;
+      const out = document.getElementById('verifyResult');
+      if (!cred) { out.textContent = 'No credential selected.'; out.className = 'text-sm text-red-600'; return; }
+      if (!prompt) { out.textContent = 'No active prompt.'; out.className = 'text-sm text-red-600'; return; }
+      const res = await verifyCredentialAgainstPrompt(cred, prompt);
+      if (res.ok) { out.textContent = '✅ Verified'; out.className = 'text-sm text-emerald-700'; }
+      else { out.textContent = `❌ Not verified: ${res.reason}`; out.className = 'text-sm text-red-600'; }
+    });
+
+    document.getElementById('seedDemoBtn').addEventListener('click', seedDemo);
+
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      state.accounts = []; state.activeAccountId = null; state.activePrompt = null;
+      renderAccounts(); selectAccount(null); renderPromptUI();
+    });
+
+    // Initial render
+    renderAccounts();
+    renderPromptUI();
+  </script>
+</body>
+
+</html>
